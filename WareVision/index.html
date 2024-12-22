@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard with Sidebar Navigation</title>
+ 
+    <link rel="stylesheet" href="style.css">
+</head>
+
+
+<body>
+    <div class="sidebar">
+        <h1>Dashboard</h1>
+        <a href="#" onclick="showPage('liveDetector')">Live Feed</a>
+        <a href="#" onclick="showPage('boxDetection')">Box Detection</a>
+        <a href="#" onclick="showPage('pathTracing')">Path Tracing</a>
+        <a href="#" onclick="showPage('inventoryStatus')">Inventory Status</a>
+        <a href="#" onclick="showPage('reminders')">Reminders</a>
+        <a href="#" onclick="showPage('pendingOrders')">Pending Orders</a>
+    </div>
+
+    <div class="content">
+        <!-- Pages 1 -->
+        <div id="liveDetector" class="hidden">
+            <h1>Live Feed</h1>
+
+            <!-- Canvas for live video -->
+            <div class="video-container" style="position: relative; display: inline-block;">
+                <video id="liveVideo" width="640" height="480" autoplay></video>
+                <canvas id="videoCanvas" width="640" height="480" style="position: absolute; top: 0; left: 0;"></canvas>
+            </div>
+
+            <!-- Control Buttons -->
+            <div>
+                <button id="playButton">Play</button>
+                <button id="pauseButton" disabled>Pause</button>
+                <button id="stopButton" disabled>Stop</button>
+            </div>
+
+            <p>Content for Live Feed goes here.</p>
+        </div>
+
+        <!-- Pages 2-->
+        <div id="boxDetection" class="hidden">
+            <h1>Box Detection</h1>
+
+            <!-- Image Upload Section with Drag and Drop -->
+            <div class="upload-container">
+                <div id="dropZone" class="drop-zone">
+                    <p>Drag & Drop or <span>Click to Upload</span></p>
+                    <input type="file" id="imageInput" class="hidden" accept="image/*">
+                </div>
+                <p id="uploadStatus" class="status"></p>
+            </div>
+
+            <!-- Control Buttons -->
+            <div class="button-container">
+                <button id="proceedButton" disabled>Proceed</button>
+                <button id="restartButton" disabled>Restart</button>
+            </div>
+
+            <!-- Result Container -->
+            <div id="resultContainer" class="result-container hidden">
+                <h2>Detection Results</h2>
+                <p><strong>Number of Boxes:</strong> <span id="boxCount">0</span></p>
+                <p><strong>Orientation:</strong> <span id="orientation">N/A</span></p>
+                <p><strong>Distance:</strong> <span id="distance">N/A</span></p>
+            </div>
+        </div>
+
+        <!-- Pages 3-->
+        <div id="pathTracing" class="hidden">
+            <h1>Path Tracing</h1>
+
+            <div class="path-container">
+                <div class="upload-container">
+                    <div class="drop-zone" id="mazeDropZone" ondrop="handleMazeFileDrop(event)" ondragover="allowDrop(event)" onclick="document.getElementById('mazeFileInput').click()">
+                        <p>Drag & Drop a Maze Image here or click to upload</p>
+                        <input type="file" id="mazeFileInput" class="hidden" accept="image/*">
+                    </div>
+                </div>
+
+                <div class="button-container">
+                    <button onclick="findShortestPath()">Find Path</button>
+                    <button onclick="restartMaze()">Restart</button>
+                </div>
+            </div>
+
+            <div class="result-container" id="resultContainer">
+                <h2>Result</h2>
+                <div class="result-item">
+                    <span>Shortest Path Length:</span>
+                    <span id="pathLength">N/A</span>
+                </div>
+
+                <div class="image-container">
+                    <img id="pathImage" src="" alt="Maze with Shortest Path" style="max-width: 100%; margin-top: 20px; display: block;">
+                </div>
+            </div>
+        </div>
+
+
+        <!--page 4-->
+        <div id="inventoryStatus" class="hidden">
+            <h1>Inventory Status</h1>
+            <div class="chart-container">
+                <canvas id="inventoryChart"></canvas>
+            </div>
+        </div>
+
+
+        <!--page 5-->
+        <div id="reminders" class="hidden">
+            <h1>Reminders</h1>
+            <ul id="reminderList"></ul>
+
+            <h2>Add New Reminder</h2>
+            <form>
+                <input type="text" id="reminderTitle" placeholder="Reminder Title">
+                <input type="date" id="reminderDate">
+                <input type="time" id="reminderTime">
+                <button type="button" onclick="addReminder()">Add Reminder</button>
+            </form>
+        </div>
+
+
+        <!--page 6-->
+        <div id="pendingOrders" class="hidden">
+            <h1>Pending Orders</h1>
+
+            <form id="orderForm">
+                <label for="orderId">Order ID:</label>
+                <input type="text" id="orderId" required><br><br>
+
+                <label for="customerName">Customer Name:</label>
+                <input type="text" id="customerName" required><br><br>
+
+                <label for="orderDetails">Order Details:</label>
+                <input type="text" id="orderDetails" required><br><br>
+
+                <label for="deliveryTime">Estimated Delivery:</label>
+                <input type="datetime-local" id="deliveryTime" required><br><br>
+
+                <button type="button" onclick="addOrder()">Add Order</button>
+            </form>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Customer Name</th>
+                        <th>Order Details</th>
+                        <th>Estimated Delivery</th>
+                    </tr>
+                </thead>
+                <tbody id="orderTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+          
+<script>
+    // Navigation Logic
+        function showPage(pageId) {
+            // Hide all pages
+            document.querySelectorAll('.content > div').forEach(page => {
+                page.classList.add('hidden');
+            });
+
+            // Show selected page
+            document.getElementById(pageId).classList.remove('hidden');
+
+            // If Inventory Status is selected, load chart
+            if (pageId === 'inventoryStatus') {
+                loadInventoryChart();
+            }
+        }
+
+        // Inventory Chart
+        function loadInventoryChart() {
+            const ctx = document.getElementById('inventoryChart').getContext('2d');
+
+            if (Chart.getChart(ctx)) {
+                Chart.getChart(ctx).destroy(); // Prevent multiple chart instances
+            }
+
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Ice Cream', 'Chocolate', 'Biscuits', 'Others'],
+                    datasets: [{
+                        label: 'Inventory',
+                        data: [40, 30, 15, 15],
+                        backgroundColor: ['#FFD700', '#8B4513', '#D2691E', '#808080'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 1.5,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                font: {
+                                    size: 14
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Reminder Logic
+        let reminders = [];
+
+        function addReminder() {
+            const title = document.getElementById('reminderTitle').value.trim();
+            const date = document.getElementById('reminderDate').value;
+            const time = document.getElementById('reminderTime').value;
+
+            if (title && date && time) {
+                const newReminder = {
+                    title,
+                    date,
+                    time
+                };
+                reminders.push(newReminder);
+                saveReminders();
+                displayReminders();
+                clearInputFields();
+            } else {
+                alert("Please fill in all fields.");
+            }
+        }
+
+        function displayReminders() {
+            const reminderList = document.getElementById('reminderList');
+            reminderList.innerHTML = '';
+
+            reminders.forEach((reminder, index) => {
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `${reminder.title} - ${reminder.date} ${reminder.time} <button onclick="deleteReminder(${index})">Delete</button>`;
+                reminderList.appendChild(listItem);
+            });
+        }
+
+        function deleteReminder(index) {
+            reminders.splice(index, 1);
+            saveReminders();
+            displayReminders();
+        }
+
+        function saveReminders() {
+            localStorage.setItem('reminders', JSON.stringify(reminders));
+        }
+
+        function loadReminders() {
+            const storedReminders = localStorage.getItem('reminders');
+            if (storedReminders) {
+                reminders = JSON.parse(storedReminders);
+                displayReminders();
+            }
+        }
+
+        function clearInputFields() {
+            document.getElementById('reminderTitle').value = '';
+            document.getElementById('reminderDate').value = '';
+            document.getElementById('reminderTime').value = '';
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadReminders();
+            showPage('liveDetector'); // Default page
+        });
+    </script>
+
+    <!--live-->
+    <script>
+        let mediaStream = null;
+        const videoElement = document.getElementById('liveVideo');
+        const canvasElement = document.getElementById('videoCanvas');
+        const playButton = document.getElementById('playButton');
+        const pauseButton = document.getElementById('pauseButton');
+        const stopButton = document.getElementById('stopButton');
+
+        // Access the user's webcam
+        function startVideo() {
+            navigator.mediaDevices.getUserMedia({
+                    video: true
+                })
+                .then(stream => {
+                    mediaStream = stream;
+                    videoElement.srcObject = stream;
+                    playButton.disabled = true;
+                    pauseButton.disabled = false;
+                    stopButton.disabled = false;
+
+                    // Optional: Draw the live video feed to canvas for further processing
+                    const context = canvasElement.getContext('2d');
+
+                    function drawFrame() {
+                        if (mediaStream) {
+                            context.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+                            requestAnimationFrame(drawFrame);
+                        }
+                    }
+                    drawFrame(); // Start drawing video to canvas
+                })
+                .catch(error => {
+                    console.error('Error accessing webcam: ', error);
+                    alert('Could not access the webcam');
+                });
+        }
+
+        // Pause the video
+        function pauseVideo() {
+            if (mediaStream) {
+                videoElement.pause();
+                pauseButton.disabled = true;
+                playButton.disabled = false;
+            }
+        }
+
+        // Stop the video and release resources
+        function stopVideo() {
+            if (mediaStream) {
+                const tracks = mediaStream.getTracks();
+                tracks.forEach(track => track.stop());
+                videoElement.srcObject = null;
+                mediaStream = null;
+                playButton.disabled = false;
+                pauseButton.disabled = true;
+                stopButton.disabled = true;
+            }
+        }
+
+        // Event listeners for control buttons
+        playButton.addEventListener('click', startVideo);
+        pauseButton.addEventListener('click', pauseVideo);
+        stopButton.addEventListener('click', stopVideo);
+    </script>
+
+    <!--Box-->
+    <script>
+        // Variables for file upload
+        let uploadedImage = null;
+        const dropZone = document.getElementById('dropZone');
+        const imageInput = document.getElementById('imageInput');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const proceedButton = document.getElementById('proceedButton');
+        const restartButton = document.getElementById('restartButton');
+        const resultContainer = document.getElementById('resultContainer');
+
+        // Handle file selection
+        function handleFile(file) {
+            if (file) {
+                uploadedImage = file;
+                uploadStatus.textContent = 'Image uploaded successfully!';
+                proceedButton.disabled = false;
+                
+                // Display preview if needed
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    dropZone.innerHTML = `<img src="${e.target.result}" style="max-width: 100%; max-height: 200px;">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // File Input Change Handler
+        imageInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            handleFile(file);
+        });
+
+        // Drag and Drop Handlers
+        dropZone.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (event) => {
+            event.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const file = event.dataTransfer.files[0];
+            handleFile(file);
+        });
+
+        // Click to Upload
+        dropZone.addEventListener('click', () => {
+            imageInput.click();
+        });
+
+        // Proceed Button Logic
+        proceedButton.addEventListener('click', async () => {
+            if (!uploadedImage) {
+                alert('Please upload an image first');
+                return;
+            }
+
+            try {
+                // Create FormData and append the image
+                const formData = new FormData();
+                formData.append('file', uploadedImage);
+
+                // Show loading state
+                proceedButton.disabled = true;
+                proceedButton.textContent = 'Processing...';
+                
+                // Send image to backend
+                const response = await fetch('http://localhost:5000/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
+                
+                // Show results
+                resultContainer.classList.remove('hidden');
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                // Display the response
+                resultContainer.innerHTML = `
+                    <h2>Detection Results</h2>
+                    <pre>${data.text_response}</pre>
+                `;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error processing image: ' + error.message);
+            } finally {
+                // Reset button state
+                proceedButton.disabled = false;
+                proceedButton.textContent = 'Proceed';
+            }
+        });
+
+        // Restart Button Logic
+        restartButton.addEventListener('click', () => {
+            uploadedImage = null;
+            imageInput.value = '';
+            dropZone.innerHTML = '<p>Drag & Drop or <span>Click to Upload</span></p>';
+            uploadStatus.textContent = '';
+            proceedButton.disabled = true;
+            resultContainer.classList.add('hidden');
+        });
+    </script>
+
+    <!--path-->
+    <script>
+        function allowDrop(event) {
+            event.preventDefault();
+        }
+
+        function handleMazeFileDrop(event) {
+            event.preventDefault();
+            const file = event.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                displayUploadedImage(file);
+            } else {
+                alert("Please drop a valid image file.");
+            }
+        }
+
+        // Add event listener for file input change
+        document.getElementById('mazeFileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                displayUploadedImage(file);
+            } else {
+                alert("Please select a valid image file.");
+            }
+        });
+
+        function displayUploadedImage(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dropZone = document.getElementById('mazeDropZone');
+                dropZone.innerHTML = '';
+                
+                const img = new Image();
+                img.src = e.target.result;
+                img.id = "uploadedMazeImage";
+                img.style.maxWidth = '100%';
+                dropZone.appendChild(img);
+                
+                document.getElementById('pathImage').src = e.target.result;
+                document.getElementById('resultContainer').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function restartMaze() {
+            const dropZone = document.getElementById('mazeDropZone');
+            dropZone.innerHTML = '<p>Drag & Drop a Maze Image here or click to upload</p><input type="file" id="mazeFileInput" class="hidden" accept="image/*">';
+            
+            // Re-add the click event listener
+            dropZone.onclick = () => document.getElementById('mazeFileInput').click();
+            
+            // Re-add the change event listener
+            document.getElementById('mazeFileInput').addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    displayUploadedImage(file);
+                } else {
+                    alert("Please select a valid image file.");
+                }
+            });
+            
+            const pathImage = document.getElementById('pathImage');
+            pathImage.src = '';
+            pathImage.style.display = 'none';
+            
+            document.getElementById('pathLength').textContent = 'N/A';
+        }
+
+        // Function to handle the "Find Path" button click
+        async function findShortestPath() {
+            const uploadedImage = document.getElementById("uploadedMazeImage");
+            if (!uploadedImage) {
+                alert("Please upload a maze image first.");
+                return;
+            }
+
+            // Hide the uploaded image
+            uploadedImage.style.display = 'none';
+
+            const formData = new FormData();
+            const dropZone = document.getElementById('mazeDropZone');
+            const img = dropZone.querySelector('img');
+            
+            // Convert base64 image back to blob
+            const response = await fetch(img.src);
+            const blob = await response.blob();
+            formData.append('file', blob, 'maze.png');
+
+            try {
+                const response = await fetch('http://127.0.0.1:5001/solve_maze', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.image) {
+                    const pathImage = document.getElementById('pathImage');
+                    pathImage.src = `data:image/png;base64,${data.image}`;
+                    pathImage.style.display = 'block';
+                    document.getElementById('pathLength').textContent = data.message;
+                } else if (data.error) {
+                    document.getElementById('pathLength').textContent = `Error: ${data.error}`;
+                    // Show the uploaded image back if there's an error
+                    uploadedImage.style.display = 'block';
+                } else {
+                    document.getElementById('pathLength').textContent = 'Unknown error.';
+                    // Show the uploaded image back if there's an error
+                    uploadedImage.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                document.getElementById('pathLength').textContent = 'Failed to communicate with the server.';
+                // Show the uploaded image back if there's an error
+                uploadedImage.style.display = 'block';
+            }
+        }
+    </script>
+
+    <!--pending order-->
+    <script>
+        const orders = []; // Array to store orders
+
+        function addOrder() {
+            const orderId = document.getElementById('orderId').value;
+            const customerName = document.getElementById('customerName').value;
+            const orderDetails = document.getElementById('orderDetails').value;
+            const deliveryTime = document.getElementById('deliveryTime').value;
+
+            if (orderId && customerName && orderDetails && deliveryTime) {
+                const newOrder = {
+                    orderId: orderId,
+                    customerName: customerName,
+                    orderDetails: orderDetails,
+                    deliveryTime: deliveryTime
+                };
+                orders.push(newOrder);
+                displayOrders();
+                clearForm();
+            } else {
+                alert("Please fill in all fields.");
+            }
+        }
+
+        function displayOrders() {
+            const orderTableBody = document.getElementById('orderTableBody');
+            orderTableBody.innerHTML = '';
+
+            orders.forEach(order => {
+                const row = document.createElement('tr');
+                const orderIdCell = document.createElement('td');
+                const customerNameCell = document.createElement('td');
+                const orderDetailsCell = document.createElement('td');
+                const deliveryTimeCell = document.createElement('td');
+
+                orderIdCell.textContent = order.orderId;
+                customerNameCell.textContent = order.customerName;
+                orderDetailsCell.textContent = order.orderDetails;
+                deliveryTimeCell.textContent = order.deliveryTime;
+
+                row.appendChild(orderIdCell);
+                row.appendChild(customerNameCell);
+                row.appendChild(orderDetailsCell);
+                row.appendChild(deliveryTimeCell);
+
+                orderTableBody.appendChild(row);
+            });
+        }
+
+        function clearForm() {
+            document.getElementById('orderId').value = '';
+            document.getElementById('customerName').value = '';
+            document.getElementById('orderDetails').value = '';
+            document.getElementById('deliveryTime').value = '';
+        }
+    </script>
+</body>
+
+</html>
